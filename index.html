@@ -12736,11 +12736,29 @@ $("#buzon-tReg").onclick = async e => {
     renderPanel();
   }
 };
-$("#buzon-bClear").onclick = () => {
-  if(loadLocal().length && confirm("¿Borrar los registros guardados SOLO en este navegador? Las sugerencias de la nube no se tocan: se eliminan una por una con «Eliminar registro».")) {
+$("#buzon-bClear").onclick = async () => {
+  const locales = loadLocal().length;
+  const nube = NUBE.length;
+  if(!locales && !nube){ alert("No hay registros para borrar."); return; }
+  const msg = "¿Borrar TODOS los registros del buzón?\n\n• En este navegador: " + locales + "\n• En la nube: " + nube + "\n\nEsta acción no se puede deshacer. Los correos ya recibidos no se eliminan.";
+  if(!confirm(msg)) return;
+  if(locales){
+    try{ localStorage.removeItem(CFG.KEY); }catch(e){}
     save([]);
-    renderPanel();
   }
+  let fallos = 0;
+  if(nube){
+    const clave = sessionStorage.getItem("p15k");
+    for(const x of NUBE.slice()){
+      try{
+        const r = await llamarNube({accion:"eliminar", clave, id:x.id});
+        if(r && r.ok){ NUBE = NUBE.filter(y => y.id !== x.id); } else { fallos++; }
+      }catch(err){ fallos++; }
+    }
+  }
+  renderPanel();
+  if(fallos) alert("No se pudieron eliminar " + fallos + " registro(s) de la nube. Intente de nuevo.");
+  else alert("Registros borrados correctamente.");
 };
 
 // MOTOR DE DESCARGA DIRECTA: Blob + Object URL para archivos locales seguros.
